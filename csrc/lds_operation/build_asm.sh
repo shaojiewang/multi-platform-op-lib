@@ -4,4 +4,4 @@ ARCH=gfx942
 
 
 # run
- ./bench.exe v_mfma_f32_16x16x1f32 16 16 1  1 64 1
+./bench.exe 1000 1410

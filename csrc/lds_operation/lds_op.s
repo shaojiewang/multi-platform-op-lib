@@ -5,6 +5,8 @@
 
 .set k_bdx,     256     ; should be 256 in bdx
 .set k_end,     12
+.set v_offset,  10
+.set v_dst,     16
 .set v_end,     128     ; hard code to this to let occupancy to be 1.  65536 / 256 = 256
 .set s_rand,    12
 .set s_iter,    13
@@ -18,6 +20,7 @@ kernel_func:
     s_load_dword        s[s_rand], s[0:1], 0
     s_load_dword        s[s_iter], s[0:1], 4
     s_load_dword        s[s_nop_cnt], s[0:1], 8
+    v_lshlrev_b32 v[v_offset], 4, v[0]
     s_waitcnt           lgkmcnt(0)
     s_mov_b32           s[s_iter_2], s[s_iter]
     .cnt=0
@@ -31,19 +34,16 @@ kernel_func:
     .v_itr = 0
 L_kernel_start:
     s_sub_u32 s[s_iter], s[s_iter], 1
-    .rept 32
-        v_mfma_f32_16x16x1f32 a[.a_itr+0 :.a_itr+15], v[.v_itr+0 :.v_itr+0], v[.v_itr+1:.v_itr+1], a[.a_itr+0 :.a_itr+15]   
-        ;s_nop .nop
-        .a_itr = .a_itr+16
-        .if .a_itr > a_end
-            .a_itr = 0
-        .endif
-        .v_itr = .v_itr+1
+    .rept 16
+        ds_read_b128 v[v_dst + .v_itr : v_dst + 3 + .v_itr], v[v_offset], offset: .v_itr * 4 * 256
+        .v_itr = .v_itr+4
         .if .v_itr > v_end
             .v_itr = 0
         .endif
+        s_waitcnt lgkmcnt(0)
     .endr
-        
+
+
     s_cmp_gt_u32 s[s_iter], 0
     s_cbranch_scc1 L_kernel_start
 
