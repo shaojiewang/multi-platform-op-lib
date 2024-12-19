@@ -16,7 +16,7 @@ memcpy_x4_kernel_gfx1030:
 
 .set v_buf,             0
 .set v_offset,          16
-.set v_tmp,             32
+.set v_tmp,             20
 
 .set num_threads,        256
 
@@ -59,9 +59,9 @@ label_memcopy_start:
     s_waitcnt       vmcnt(0)
 
     global_store_dwordx4    v[v_offset+0],  v[v_buf+0 :v_buf+3],    s[s_ptr_out:s_ptr_out+1]
-    ;global_store_dwordx4    v[v_offset+1],  v[v_buf+4 :v_buf+7],    s[s_ptr_out:s_ptr_out+1]
-    ;global_store_dwordx4    v[v_offset+2],  v[v_buf+8 :v_buf+11],   s[s_ptr_out:s_ptr_out+1]
-    ;global_store_dwordx4    v[v_offset+3],  v[v_buf+12:v_buf+15],   s[s_ptr_out:s_ptr_out+1]
+    global_store_dwordx4    v[v_offset+1],  v[v_buf+4 :v_buf+7],    s[s_ptr_out:s_ptr_out+1]
+    global_store_dwordx4    v[v_offset+2],  v[v_buf+8 :v_buf+11],   s[s_ptr_out:s_ptr_out+1]
+    global_store_dwordx4    v[v_offset+3],  v[v_buf+12:v_buf+15],   s[s_ptr_out:s_ptr_out+1]
 
     s_add_u32   s[s_ptr_out],   s[s_stride_block], s[s_ptr_out]
     s_addc_u32  s[s_ptr_out+1], s[s_ptr_out+1], 0
@@ -80,11 +80,11 @@ label_memcopy_start:
     .amdhsa_user_sgpr_kernarg_segment_ptr 1
     .amdhsa_system_sgpr_workgroup_id_x 1
     .amdhsa_system_vgpr_workitem_id 0
-    .amdhsa_next_free_vgpr 64
+    .amdhsa_next_free_vgpr 32
     .amdhsa_next_free_sgpr 32
     .amdhsa_ieee_mode 0
     .amdhsa_dx10_clamp 0
-    .amdhsa_accum_offset 64
+    .amdhsa_accum_offset 32
     # .amdhsa_wavefront_size32 1
     # .amdhsa_workgroup_processor_mode 0
 .end_amdhsa_kernel
@@ -96,12 +96,12 @@ amdhsa.kernels:
   - .name: memcpy_x4_kernel_gfx1030
     .symbol: memcpy_x4_kernel_gfx1030.kd
     .sgpr_count: 32
-    .vgpr_count: 64
+    .vgpr_count: 32
     .kernarg_segment_align: 8
     .kernarg_segment_size: 24
     .group_segment_fixed_size: 0
     .private_segment_fixed_size: 0
-    .wavefront_size: 32
+    .wavefront_size: 64
     .reqd_workgroup_size : [256, 1, 1]
     .max_flat_workgroup_size: 256
     .args:
