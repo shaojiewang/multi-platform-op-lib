@@ -34,12 +34,13 @@ L_kernel_start:
     s_sub_u32 s[s_iter], s[s_iter], 1
     .rept 32
         v_mfma_f32_16x16x16_bf16 a[.a_itr+0 :.a_itr+3], v[.v_itr+0 :.v_itr+1], v[.v_itr+2:.v_itr+3], a[.a_itr+0 :.a_itr+3]   
+        ;v_mfma_f32_32x32x8_bf16 a[.a_itr+0 :.a_itr+15], v[.v_itr+0 :.v_itr+1], v[.v_itr+2:.v_itr+3], a[.a_itr+0 :.a_itr+15]   
         ;s_nop .nop
-        .a_itr = .a_itr+4
+        .a_itr = .a_itr+6
         .if .a_itr > a_end
             .a_itr = 0
         .endif
-        .v_itr = .v_itr+2
+        .v_itr = .v_itr+4
         .if .v_itr > v_end
             .v_itr = 0
         .endif
