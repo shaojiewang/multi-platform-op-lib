@@ -3,5 +3,5 @@ ARCH=gfx942
 /opt/rocm/bin/hipcc --offload-arch=$ARCH  test.cu -o test
 
 # run
-./test v_mfma_f32_16x16x16_bf16 16 16 16 1 16 1410
+./test v_mfma_f32_16x16x16_bf16 16 16 16 1 16 2100 
 

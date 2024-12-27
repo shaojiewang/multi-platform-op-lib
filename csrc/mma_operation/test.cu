@@ -44,7 +44,7 @@ int main(int argc, char ** argv){
     int K = std::stoull(std::string(argv[4]));
     int blocks = std::stoull(std::string(argv[5]));
     int cycles = std::stoull(std::string(argv[6]));
-    unsigned int inst_iter = static_cast<unsigned int>(static_cast<unsigned long long>(1536)*1024*8/(M*N*K*blocks));
+    unsigned int inst_iter = static_cast<unsigned int>(static_cast<unsigned long long>(2048)*1024*8/(M*N*K*blocks));
     srand(time(NULL));
     float rand_seed = ((float)(rand() % 1000))/1000.0;
     struct {
