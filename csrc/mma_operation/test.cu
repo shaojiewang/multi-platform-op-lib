@@ -89,6 +89,6 @@ int main(int argc, char ** argv){
     double TheTflops = (double)2*M*N*K*blocks*4*num_cu*SCLK/cycles/1e3;
     float RelPerf = Tflops/TheTflops;
 
-    printf("%d\t%-32s\t%i\t%.1f\t%.3fms   \t%.2f \t%.1f\t%.3f \n", num_cu, argv[1], MHZ, Tflops, time_per_loop, Gflop, TheTflops, RelPerf);
+    printf("%d, %-32s, %i, %.1f, %.3fms, %.2f, %.1f, %.3f \n", num_cu, argv[1], MHZ, Tflops, time_per_loop, Gflop, TheTflops, RelPerf);
 }
 
