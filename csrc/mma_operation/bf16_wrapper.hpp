@@ -4,6 +4,14 @@
 #include <cuda_bf16.h>
 #else
 
+#define HIP_CALL(call) do{  \
+    hipError_t err = call;  \
+    if(err != hipSuccess){  \
+        printf("[hiperror](%d) fail to call %s",(int)err,#call);    \
+        exit(0);            \
+    }                      \
+} while(0)
+
 struct bfloat16_t 
 {
     unsigned short x;
@@ -21,6 +29,7 @@ using fp32x1_t = float;
 using fp32x2_t = fp32x1_t __attribute__((ext_vector_type(2)));
 using fp32x4_t = fp32x1_t __attribute__((ext_vector_type(4)));
 using fp32x8_t = fp32x1_t __attribute__((ext_vector_type(8)));
+using fp32x16_t = fp32x1_t __attribute__((ext_vector_type(16)));
 
 // Declare a template function for bf16 conversion using RTN
 template <typename Y, typename X>
