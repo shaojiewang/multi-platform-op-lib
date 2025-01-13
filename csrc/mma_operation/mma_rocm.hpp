@@ -20,7 +20,9 @@ __device__ int32x4_t make_buffer_resource(const void * ptr, uint32_t size = 0xff
     return __builtin_bit_cast(int32x4_t, res);
 }
 
-__global__ void mma_operations(const void* __restrict__ ptr_in,
+__global__ void 
+__launch_bounds__(512, 1)
+mma_operations(const void* __restrict__ ptr_in,
                                const float random_number,
                                const uint32_t mma_count)
 {
@@ -41,7 +43,7 @@ __global__ void mma_operations(const void* __restrict__ ptr_in,
         {
             __asm__ __volatile__("v_mfma_f32_16x16x16_bf16 %0, %1, %2, %3\n"
                                  : "+v"(v_c[0])
-                                 : "v"(v_a[0]), "v"(v_b[0]), "v"(v_c[0]));
+                                 : "v"(v_a[j]), "v"(v_b[j]), "v"(v_c[0]));
         }
     }
 }
