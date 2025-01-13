@@ -9,7 +9,7 @@ int main(int argc, char** argv)
     int num_cu;
     hipDeviceProp_t device_prop;
     hipEvent_t event_start, event_end;
-    hipDevice_t devive;
+    hipDevice_t device;
     HIP_CALL(hipGetDevice(&device));
     HIP_CALL(hipGetDeviceProperties(&device_prop, device));
     num_cu = device_prop.multiProcessorCount;
@@ -27,29 +27,29 @@ int main(int argc, char** argv)
     int cycles = std::stoull(std::string(argv[6]));
     unsigned int inst_iter = static_cast<unsigned int>(static_cast<unsigned long long>(2048)*1024*8/(M*N*K*blocks));
     srand(time(NULL));
-    float rand_seed = ((float)(rand() % 1000))/1000.0;
+    float random_seed = ((float)(rand() % 1000))/1000.0;
    
      
     for(i = 0; i < warm_ups; i++)
     {
         mma_launcher(nullptr, random_seed, inst_iter, gdx, bdx);
     }
-    hipEventCreate(&event_start);
-    hipEventCreate(&event_end);
+    HIP_CALL(hipEventCreate(&event_start));
+    HIP_CALL(hipEventCreate(&event_end));
 
-    hipCtxSynchronize();
-    hipEventRecord(event_start, NULL);
+    (hipCtxSynchronize());
+    HIP_CALL(hipEventRecord(event_start, NULL));
     for(i = 0; i < total_loop; i++)
     {
         mma_launcher(nullptr, random_seed, inst_iter, gdx, bdx);
     }
     float elapsed_ms;
-    hipEventRecord(event_end, NULL);
-    hipEventSynchronize(event_end);
-    hipCtxSynchronize();
-    hipEventElapsedTime(&elapsed_ms, event_start, event_end);
-    hipEventDestroy(event_start);
-    hipEventDestroy(event_end);
+    HIP_CALL(hipEventRecord(event_end, NULL));
+    HIP_CALL(hipEventSynchronize(event_end));
+    (hipCtxSynchronize());
+    HIP_CALL(hipEventElapsedTime(&elapsed_ms, event_start, event_end));
+    HIP_CALL(hipEventDestroy(event_start));
+    HIP_CALL(hipEventDestroy(event_end));
 
     float time_per_loop = elapsed_ms / total_loop;
     //float tips = (double)inst_loop*inst_blocks*num_cu*bdx/time_per_loop/1e9;

@@ -15,12 +15,12 @@
 struct bfloat16_t 
 {
     unsigned short x;
-}
+};
 
 using __nv_bfloat16 = bfloat16_t;
 using bhalf_t = bfloat16_t;
 
-using bf16x1_t = bfloat16_t;
+using bf16x1_t = unsigned short; // bfloat16_t;
 using bf16x2_t = bf16x1_t __attribute__((ext_vector_type(2)));
 using bf16x4_t = bf16x1_t __attribute__((ext_vector_type(4)));
 using bf16x8_t = bf16x1_t __attribute__((ext_vector_type(8)));
