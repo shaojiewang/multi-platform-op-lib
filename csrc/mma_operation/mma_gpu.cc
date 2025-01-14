@@ -14,7 +14,7 @@ int main(int argc, char** argv)
     HIP_CALL(hipGetDeviceProperties(&device_prop, device));
     num_cu = device_prop.multiProcessorCount;
 
-    int total_loop= 100;
+    int total_loop= 10;
     int warm_ups = 5;
     int i;
     int bdx = 256;
@@ -28,11 +28,13 @@ int main(int argc, char** argv)
     unsigned int inst_iter = static_cast<unsigned int>(static_cast<unsigned long long>(2048)*1024*8/(M*N*K*blocks));
     srand(time(NULL));
     float random_seed = ((float)(rand() % 1000))/1000.0;
-   
+  
+    void* ptr_in;
+    HIP_CALL(hipMalloc(&ptr_in, gdx * bdx * sizeof(bf16x4_t) * inst_iter * (1 + total_loop))); 
      
     for(i = 0; i < warm_ups; i++)
     {
-        mma_launcher(nullptr, random_seed, inst_iter, gdx, bdx);
+        mma_launcher(ptr_in, random_seed, inst_iter, gdx, bdx);
     }
     HIP_CALL(hipEventCreate(&event_start));
     HIP_CALL(hipEventCreate(&event_end));
@@ -41,7 +43,8 @@ int main(int argc, char** argv)
     HIP_CALL(hipEventRecord(event_start, NULL));
     for(i = 0; i < total_loop; i++)
     {
-        mma_launcher(nullptr, random_seed, inst_iter, gdx, bdx);
+        char* tmp_ptr_in = reinterpret_cast<char*>(ptr_in) + gdx * bdx * sizeof(bf16x8_t) * (i + 1);
+        mma_launcher(reinterpret_cast<void*>(tmp_ptr_in), random_seed, inst_iter, gdx, bdx);
     }
     float elapsed_ms;
     HIP_CALL(hipEventRecord(event_end, NULL));
