@@ -207,3 +207,11 @@ __global__ void wgmma_block(TAcc* acc_ptr)
     accumulators[60], accumulators[61], accumulators[62], accumulators[63]
   );
 }
+
+template <class TA,
+          class TB,
+          class TAcc>
+void mma_operation_launcher(TAcc* acc_ptr, int gdx, int bdx)
+{
+  wgmma_block<TA, TB, TAcc><<<gdx, bdx>>>(acc_ptr);
+}
