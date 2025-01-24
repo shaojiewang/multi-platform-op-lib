@@ -22,6 +22,11 @@
 
 using half_t = half;
 
+using bf16x1_t = unsigned short; // bfloat16_t;
+using bf16x2_t = bf16x1_t __attribute__((ext_vector_type(2)));
+using bf16x4_t = bf16x1_t __attribute__((ext_vector_type(4)));
+using bf16x8_t = bf16x1_t __attribute__((ext_vector_type(8)));
+
 #define CUDA_CHECK(status)                                              \
   {                                                                     \
     cudaError_t error = status;                                         \
@@ -171,7 +176,7 @@ struct KernelSharedStorage {
 template <class TA,
           class TB,
           class TAcc>
-__global__ void wgmma_block(TAcc* acc_ptr)
+__global__ void wgmma_block(TAcc* acc_ptr, float random_seed)
 {
   int tidx = threadIdx.x;
   int bidx = blockIdx.x;
@@ -181,14 +186,14 @@ __global__ void wgmma_block(TAcc* acc_ptr)
 
   extern __shared__ uint8_t raw_shared_mem[];
 
-  KernelStorage<TA, TB>& shared_storage = *reinterpret_cast<KernelStorage<TA, TB>*>(raw_shared_mem);
+  KernelSharedStorage<TA, TB>& shared_storage = *reinterpret_cast<KernelSharedStorage<TA, TB>*>(raw_shared_mem);
 
   warpgroup_arrive();
   
   auto desc_a = make_smem_desc(shared_storage.smem_a);
   auto desc_b = make_smem_desc(shared_storage.smem_b);
 
-  SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a, desc_b, 
+  SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
     accumulators[0], accumulators[1], accumulators[2], accumulators[3],
     accumulators[4], accumulators[5], accumulators[6], accumulators[7],
     accumulators[8], accumulators[9], accumulators[10], accumulators[11],
@@ -211,7 +216,7 @@ __global__ void wgmma_block(TAcc* acc_ptr)
 template <class TA,
           class TB,
           class TAcc>
-void mma_operation_launcher(TAcc* acc_ptr, int gdx, int bdx)
+void mma_launcher(TAcc* acc_ptr, float random_seed, int inst_iter, int gdx, int bdx)
 {
-  wgmma_block<TA, TB, TAcc><<<gdx, bdx>>>(acc_ptr);
+  wgmma_block<TA, TB, TAcc><<<gdx, bdx>>>(acc_ptr, random_seed);
 }

@@ -28,7 +28,7 @@ int main(int argc, char** argv)
      
   for(i = 0; i < warm_ups; i++)
   {
-    mma_launcher(ptr_in, random_seed, inst_iter, gdx, bdx);
+    mma_launcher<__nv_bfloat16, __nv_bfloat16, float>(reinterpret_cast<float*>(ptr_in), random_seed, inst_iter, gdx, bdx);
   }
   CUDA_CHECK(cudaEventCreate(&event_start));
   CUDA_CHECK(cudaEventCreate(&event_end));
@@ -38,7 +38,7 @@ int main(int argc, char** argv)
   for(i = 0; i < total_loop; i++)
   {
     char* tmp_ptr_in = reinterpret_cast<char*>(ptr_in) + gdx * bdx * sizeof(bf16x8_t) * (i + 1);
-    mma_launcher(reinterpret_cast<void*>(tmp_ptr_in), random_seed, inst_iter, gdx, bdx);
+    mma_launcher<__nv_bfloat16, __nv_bfloat16, float>(reinterpret_cast<float*>(tmp_ptr_in), random_seed, inst_iter, gdx, bdx);
   }
   float elapsed_ms;
   CUDA_CHECK(cudaEventRecord(event_end, NULL));
