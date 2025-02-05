@@ -169,8 +169,8 @@ DEVICE MMASmemDescriptor make_smem_desc(PointerType smem_ptr)
 template <class AType, 
           class BType>
 struct KernelSharedStorage {
-  alignas(128) AType smem_a[40 * 1024];
-  alignas(128) BType smem_b[40 * 1024];
+  alignas(128) AType smem_a[10 * 1024];
+  alignas(128) BType smem_b[10 * 1024];
 };
 
 template <class TA,
@@ -184,7 +184,12 @@ __global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
 
   TAcc accumulators[64];
 
-  extern __shared__ uint8_t raw_shared_mem[];
+  for(int i = 0; i < 64; i++)
+  {
+    accumulators[i] = 0;
+  }
+
+  extern __shared__ uint8_t raw_shared_mem[40 * 1024];
 
   KernelSharedStorage<TA, TB>& shared_storage = *reinterpret_cast<KernelSharedStorage<TA, TB>*>(raw_shared_mem);
 
@@ -216,11 +221,7 @@ __global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
   }
 
   __syncwarp();
-
-  if(bidx == 0)
-  {
-    *(acc_ptr + tidx) = accumulators[0];
-  }
+  *(acc_ptr + tidx) = accumulators[0];
 }
 
 template <class TA,
