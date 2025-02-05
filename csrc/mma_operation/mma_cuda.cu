@@ -11,7 +11,7 @@ int main(int argc, char** argv)
   int total_loop= 10;
   int warm_ups = 5;
   int i;
-  int bdx = 256;
+  int bdx = 128;
   int gdx = num_cu;
 
   int M = std::stoull(std::string(argv[2]));
@@ -22,9 +22,11 @@ int main(int argc, char** argv)
   unsigned int inst_iter = static_cast<unsigned int>(static_cast<unsigned long long>(2048)*1024*8/(M*N*K*blocks));
   srand(time(NULL));
   float random_seed = ((float)(rand() % 1000))/1000.0;
-  
+ 
+  printf("size if %d\n", gdx * bdx * sizeof(bf16x8_t) * inst_iter * (1 + total_loop));
+ 
   void* ptr_in;
-  CUDA_CHECK(cudaMalloc(&ptr_in, gdx * bdx * sizeof(bf16x4_t) * inst_iter * (1 + total_loop))); 
+  CUDA_CHECK(cudaMalloc(&ptr_in, gdx * bdx * sizeof(bf16x8_t) * inst_iter * (1 + total_loop))); 
      
   for(i = 0; i < warm_ups; i++)
   {
@@ -37,8 +39,8 @@ int main(int argc, char** argv)
   CUDA_CHECK(cudaEventRecord(event_start, NULL));
   for(i = 0; i < total_loop; i++)
   {
-    char* tmp_ptr_in = reinterpret_cast<char*>(ptr_in) + gdx * bdx * sizeof(bf16x8_t) * (i + 1);
-    mma_launcher<__nv_bfloat16, __nv_bfloat16, float>(reinterpret_cast<float*>(tmp_ptr_in), random_seed, inst_iter, gdx, bdx);
+    char* tmp_ptr_in = reinterpret_cast<char*>(ptr_in);// + gdx * bdx * sizeof(bf16x8_t) * (0 + 1);
+    // mma_launcher<__nv_bfloat16, __nv_bfloat16, float>(reinterpret_cast<float*>(tmp_ptr_in), random_seed, inst_iter, gdx, bdx);
   }
   float elapsed_ms;
   CUDA_CHECK(cudaEventRecord(event_end, NULL));

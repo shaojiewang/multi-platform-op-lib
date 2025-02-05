@@ -105,7 +105,7 @@ struct SM90_64x128x16_F32BF16BF16_SS {
         "{\n"
         ".reg .pred p;\n"
         "setp.ne.b32 p, %66, 0;\n"
-        "wgmma.mma_async.sync.aligned.m64n128k16.f32.f16.f16 "
+        "wgmma.mma_async.sync.aligned.m64n128k16.f32.bf16.bf16 "
         "{%0,   %1,   %2,   %3,   %4,   %5,   %6,   %7,   "
         " %8,   %9,   %10,  %11,  %12,  %13,  %14,  %15,  "
         " %16,  %17,  %18,  %19,  %20,  %21,  %22,  %23,  "
@@ -176,7 +176,7 @@ struct KernelSharedStorage {
 template <class TA,
           class TB,
           class TAcc>
-__global__ void wgmma_block(TAcc* acc_ptr, float random_seed)
+__global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
 {
   int tidx = threadIdx.x;
   int bidx = blockIdx.x;
@@ -193,24 +193,34 @@ __global__ void wgmma_block(TAcc* acc_ptr, float random_seed)
   auto desc_a = make_smem_desc(shared_storage.smem_a);
   auto desc_b = make_smem_desc(shared_storage.smem_b);
 
-  SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
-    accumulators[0], accumulators[1], accumulators[2], accumulators[3],
-    accumulators[4], accumulators[5], accumulators[6], accumulators[7],
-    accumulators[8], accumulators[9], accumulators[10], accumulators[11],
-    accumulators[12], accumulators[13], accumulators[14], accumulators[15],
-    accumulators[16], accumulators[17], accumulators[18], accumulators[19],
-    accumulators[20], accumulators[21], accumulators[22], accumulators[23],
-    accumulators[24], accumulators[25], accumulators[26], accumulators[27],
-    accumulators[28], accumulators[29], accumulators[30], accumulators[31],
-    accumulators[32], accumulators[33], accumulators[34], accumulators[35],
-    accumulators[36], accumulators[37], accumulators[38], accumulators[39],
-    accumulators[40], accumulators[41], accumulators[42], accumulators[43],
-    accumulators[44], accumulators[45], accumulators[46], accumulators[47],
-    accumulators[48], accumulators[49], accumulators[50], accumulators[51],
-    accumulators[52], accumulators[53], accumulators[54], accumulators[55],
-    accumulators[56], accumulators[57], accumulators[58], accumulators[59],
-    accumulators[60], accumulators[61], accumulators[62], accumulators[63]
-  );
+  for(int i = 0; i < inst_iter; i++)
+  {
+    SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
+      accumulators[0], accumulators[1], accumulators[2], accumulators[3],
+      accumulators[4], accumulators[5], accumulators[6], accumulators[7],
+      accumulators[8], accumulators[9], accumulators[10], accumulators[11],
+      accumulators[12], accumulators[13], accumulators[14], accumulators[15],
+      accumulators[16], accumulators[17], accumulators[18], accumulators[19],
+      accumulators[20], accumulators[21], accumulators[22], accumulators[23],
+      accumulators[24], accumulators[25], accumulators[26], accumulators[27],
+      accumulators[28], accumulators[29], accumulators[30], accumulators[31],
+      accumulators[32], accumulators[33], accumulators[34], accumulators[35],
+      accumulators[36], accumulators[37], accumulators[38], accumulators[39],
+      accumulators[40], accumulators[41], accumulators[42], accumulators[43],
+      accumulators[44], accumulators[45], accumulators[46], accumulators[47],
+      accumulators[48], accumulators[49], accumulators[50], accumulators[51],
+      accumulators[52], accumulators[53], accumulators[54], accumulators[55],
+      accumulators[56], accumulators[57], accumulators[58], accumulators[59],
+      accumulators[60], accumulators[61], accumulators[62], accumulators[63]
+    );
+  }
+
+  __syncwarp();
+
+  if(bidx == 0)
+  {
+    *(acc_ptr + tidx) = accumulators[0];
+  }
 }
 
 template <class TA,
@@ -218,5 +228,5 @@ template <class TA,
           class TAcc>
 void mma_launcher(TAcc* acc_ptr, float random_seed, int inst_iter, int gdx, int bdx)
 {
-  wgmma_block<TA, TB, TAcc><<<gdx, bdx>>>(acc_ptr, random_seed);
+  wgmma_block<TA, TB, TAcc><<<gdx, bdx>>>(acc_ptr, inst_iter, random_seed);
 }
