@@ -11,7 +11,7 @@ int main(int argc, char** argv)
   int total_loop= 10;
   int warm_ups = 5;
   int i;
-  int bdx = 128;
+  int bdx = 256;
   int gdx = num_cu;
 
   int M = std::stoull(std::string(argv[2]));
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
   for(i = 0; i < total_loop; i++)
   {
     char* tmp_ptr_in = reinterpret_cast<char*>(ptr_in);// + gdx * bdx * sizeof(bf16x8_t) * (0 + 1);
-    // mma_launcher<__nv_bfloat16, __nv_bfloat16, float>(reinterpret_cast<float*>(tmp_ptr_in), random_seed, inst_iter, gdx, bdx);
+    mma_launcher<__nv_bfloat16, __nv_bfloat16, float>(reinterpret_cast<float*>(tmp_ptr_in), random_seed, inst_iter, gdx, bdx);
   }
   float elapsed_ms;
   CUDA_CHECK(cudaEventRecord(event_end, NULL));
