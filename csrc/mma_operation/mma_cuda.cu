@@ -12,7 +12,7 @@ int main(int argc, char** argv)
   int warm_ups = 5;
   int i;
   int bdx = 256;
-  int gdx = num_cu;
+  int gdx = num_cu * 32;
 
   int M = std::stoull(std::string(argv[2]));
   int N = std::stoull(std::string(argv[3]));
