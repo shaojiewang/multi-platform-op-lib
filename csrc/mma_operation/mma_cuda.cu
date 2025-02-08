@@ -11,15 +11,15 @@ int main(int argc, char** argv)
   int total_loop= 10;
   int warm_ups = 5;
   int i;
-  int bdx = 256;
-  int gdx = num_cu * 32;
+  int bdx = 128;
+  int gdx = num_cu;
 
   int M = std::stoull(std::string(argv[2]));
   int N = std::stoull(std::string(argv[3]));
   int K = std::stoull(std::string(argv[4]));
   int blocks = std::stoull(std::string(argv[5]));
   int cycles = std::stoull(std::string(argv[6]));
-  unsigned int inst_iter = static_cast<unsigned int>(static_cast<unsigned long long>(2048)*1024*8/(M*N*K*blocks));
+  unsigned int inst_iter = static_cast<unsigned int>(static_cast<unsigned long long>(2048)*1024*16/(M*N*K*blocks));
   srand(time(NULL));
   float random_seed = ((float)(rand() % 1000))/1000.0;
  
@@ -56,8 +56,8 @@ int main(int argc, char** argv)
   int MHZ = std::stoull(std::string(argv[7]));
   float SCLK = (float)MHZ / 1000.0;
 
-  double Tflops = (double)2 * M * N * K * blocks * 4 * num_cu * (32 * inst_iter) / time_per_loop / 1e9;
-  double Gflop = (double)2 * M * N * K * blocks * 4 * num_cu * (32 * inst_iter)  / 1e9;
+  double Tflops = (double)2 * M * N * K * blocks * num_cu * (32 * inst_iter) / time_per_loop / 1e9;
+  double Gflop = (double)2 * M * N * K * blocks * num_cu * (32 * inst_iter)  / 1e9;
   double TheTflops = 989.0; // (double)2 * M * N * K * blocks * 4 * num_cu * SCLK / cycles / 1e3;
   float RelPerf = Tflops / TheTflops;
 
