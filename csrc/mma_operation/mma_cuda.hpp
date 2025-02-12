@@ -223,7 +223,47 @@ __global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
         accumulators[56], accumulators[57], accumulators[58], accumulators[59],
         accumulators[60], accumulators[61], accumulators[62], accumulators[63]
       );
-#if 0
+#if 1
+      SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
+        accumulators[0], accumulators[1], accumulators[2], accumulators[3],
+        accumulators[4], accumulators[5], accumulators[6], accumulators[7],
+        accumulators[8], accumulators[9], accumulators[10], accumulators[11],
+        accumulators[12], accumulators[13], accumulators[14], accumulators[15],
+        accumulators[16], accumulators[17], accumulators[18], accumulators[19],
+        accumulators[20], accumulators[21], accumulators[22], accumulators[23],
+        accumulators[24], accumulators[25], accumulators[26], accumulators[27],
+        accumulators[28], accumulators[29], accumulators[30], accumulators[31],
+        accumulators[32], accumulators[33], accumulators[34], accumulators[35],
+        accumulators[36], accumulators[37], accumulators[38], accumulators[39],
+        accumulators[40], accumulators[41], accumulators[42], accumulators[43],
+        accumulators[44], accumulators[45], accumulators[46], accumulators[47],
+        accumulators[48], accumulators[49], accumulators[50], accumulators[51],
+        accumulators[52], accumulators[53], accumulators[54], accumulators[55],
+        accumulators[56], accumulators[57], accumulators[58], accumulators[59],
+        accumulators[60], accumulators[61], accumulators[62], accumulators[63]
+      );
+#endif
+#if 1
+      SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
+        accumulators[0], accumulators[1], accumulators[2], accumulators[3],
+        accumulators[4], accumulators[5], accumulators[6], accumulators[7],
+        accumulators[8], accumulators[9], accumulators[10], accumulators[11],
+        accumulators[12], accumulators[13], accumulators[14], accumulators[15],
+        accumulators[16], accumulators[17], accumulators[18], accumulators[19],
+        accumulators[20], accumulators[21], accumulators[22], accumulators[23],
+        accumulators[24], accumulators[25], accumulators[26], accumulators[27],
+        accumulators[28], accumulators[29], accumulators[30], accumulators[31],
+        accumulators[32], accumulators[33], accumulators[34], accumulators[35],
+        accumulators[36], accumulators[37], accumulators[38], accumulators[39],
+        accumulators[40], accumulators[41], accumulators[42], accumulators[43],
+        accumulators[44], accumulators[45], accumulators[46], accumulators[47],
+        accumulators[48], accumulators[49], accumulators[50], accumulators[51],
+        accumulators[52], accumulators[53], accumulators[54], accumulators[55],
+        accumulators[56], accumulators[57], accumulators[58], accumulators[59],
+        accumulators[60], accumulators[61], accumulators[62], accumulators[63]
+      );
+#endif
+#if 1
       SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
         accumulators[0], accumulators[1], accumulators[2], accumulators[3],
         accumulators[4], accumulators[5], accumulators[6], accumulators[7],
@@ -258,5 +298,31 @@ template <class TA,
           class TAcc>
 void mma_launcher(TAcc* acc_ptr, float random_seed, int inst_iter, int gdx, int bdx)
 {
-  wgmma_block<TA, TB, TAcc><<<gdx, bdx>>>(acc_ptr, inst_iter, random_seed);
+  dim3 cluster = {1, 1, 1};
+  auto* kernel = wgmma_block<TA, TB, TAcc>;
+  size_t smemSizeBytes = 160 * 1024;
+  if (smemSizeBytes >= (48 << 10)) {
+    cudaError_t result = cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smemSizeBytes);
+    CUDA_CHECK(result);
+  }
+  void* kernel_params[] = {&acc_ptr, &inst_iter, &inst_iter};
+  cudaLaunchConfig_t launch_config;
+  launch_config.gridDim = {gdx, 1, 1};
+  launch_config.blockDim = {bdx, 1, 1};
+  launch_config.dynamicSmemBytes = size_t(smemSizeBytes);
+  launch_config.stream = nullptr;
+
+  cudaLaunchAttribute launch_attribute[1];
+  launch_attribute[0].id = cudaLaunchAttributeClusterDimension;
+  launch_attribute[0].val.clusterDim.x = cluster.x;
+  launch_attribute[0].val.clusterDim.y = cluster.y;
+  launch_attribute[0].val.clusterDim.z = cluster.z;
+
+  launch_config.attrs = launch_attribute;
+  launch_config.numAttrs = 1;
+
+  cudaError_t status = cudaLaunchKernelExC(&launch_config, kernel, kernel_params);
+  cudaError_t launch_result = cudaGetLastError();
+  CUDA_CHECK(launch_result);
 }
