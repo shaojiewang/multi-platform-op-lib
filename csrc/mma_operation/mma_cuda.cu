@@ -11,8 +11,8 @@ int main(int argc, char** argv)
   int total_loop= 10;
   int warm_ups = 5;
   int i;
-  int bdx = 128;
-  int gdx = num_cu;
+  uint32_t bdx = 128;
+  uint32_t gdx = num_cu;
 
   int M = std::stoull(std::string(argv[2]));
   int N = std::stoull(std::string(argv[3]));
@@ -23,7 +23,7 @@ int main(int argc, char** argv)
   srand(time(NULL));
   float random_seed = ((float)(rand() % 1000))/1000.0;
  
-  printf("size if %d\n", gdx * bdx * sizeof(bf16x8_t) * inst_iter * (1 + total_loop));
+  // printf("size if %d\n", gdx * bdx * sizeof(bf16x8_t) * inst_iter * (1 + total_loop));
  
   void* ptr_in;
   CUDA_CHECK(cudaMalloc(&ptr_in, gdx * bdx * sizeof(bf16x8_t) * inst_iter * (1 + total_loop))); 
