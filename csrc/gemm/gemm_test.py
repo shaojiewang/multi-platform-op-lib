@@ -1,4 +1,5 @@
 import torch
+import random
 
 def construct(m: int, n: int, k: int):
     x = torch.randn((m, k), device='cuda', dtype=torch.bfloat16)
@@ -11,7 +12,7 @@ def test_gemm():
     for m in (64, 128, 2048):
         for k, n in [(576, 7168), (7168, 2112)]:
             x, y, out, ref_out = construct(m, n, k)
-            
+
 
 if __name__ == '__main__':
     torch.backends.cuda.matmul.allow_tf32 = True
