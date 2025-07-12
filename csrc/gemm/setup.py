@@ -8,7 +8,7 @@ from torch.utils.cpp_extension import (
     CUDAExtension,
     CUDA_HOME,
 )
-from tools.utils import (get_build_sources, get_build_cuda_cflags)
+from utils import (get_build_sources, get_build_cuda_cflags)
 
 # package name managed by pip, which can be remove by `pip uninstall toy-hgemm`
 PACKAGE_NAME = "ampere_bfgemm"

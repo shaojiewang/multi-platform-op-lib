@@ -1,7 +1,131 @@
 import os
 import torch
 from torch.utils.cpp_extension import load
+from functools import wraps
 
+import torch
+from functools import wraps
+import numpy as np
+
+def cuda_timer(device=None, sync=True, repetitions=1, warmup=3):
+    """
+    CUDA事件计时装饰器（增强版）
+    
+    参数:
+        device (int/str): 指定使用的CUDA设备 (默认: 当前设备)
+        sync (bool): 是否同步设备 (确保准确计时)
+        repetitions (int): 重复测量次数 (返回平均时间)
+        warmup (int): 预热次数 (不纳入计时)
+    
+    返回:
+        tuple: (函数结果, 时间指标字典)
+        时间指标包含:
+            'avg_time_ms': 平均执行时间(ms)
+            'min_time_ms': 最小执行时间(ms)
+            'max_time_ms': 最大执行时间(ms)
+            'tflops': 计算吞吐量(TFLOPS)
+            'hbm_bandwidth': 内存带宽(GB/s)
+            'times_ms': 所有执行时间列表(ms)
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # 确定使用的设备
+            target_device = device if device is not None else torch.cuda.current_device()
+            device_obj = torch.device(f'cuda:{target_device}')
+            
+            # 创建CUDA事件
+            start_events = [torch.cuda.Event(enable_timing=True) for _ in range(repetitions + warmup)]
+            end_events = [torch.cuda.Event(enable_timing=True) for _ in range(repetitions + warmup)]
+            
+            # 预热运行
+            for i in range(warmup):
+                with torch.cuda.device(device_obj):
+                    result = func(*args, **kwargs)  # 执行目标函数
+                if sync:
+                    torch.cuda.synchronize(device_obj)
+            
+            # 正式计时运行
+            times = []
+            for i in range(warmup, repetitions + warmup):
+                torch.cuda.synchronize(device_obj)
+                start_events[i].record()
+                
+                result = func(*args, **kwargs)  # 执行目标函数
+                
+                end_events[i].record()
+                if sync:
+                    torch.cuda.synchronize(device_obj)
+                
+                # 计算本次执行时间 (毫秒)
+                elapsed_time = start_events[i].elapsed_time(end_events[i])
+                times.append(elapsed_time)
+            
+            # 计算统计指标
+            times_np = np.array(times)
+            avg_time = np.mean(times_np)
+            min_time = np.min(times_np)
+            max_time = np.max(times_np)
+            
+            # 计算TFLOPS和HBM带宽
+            tflops = None
+            hbm_bandwidth = None
+            
+            # 尝试自动检测矩阵乘法参数
+            try:
+                # 假设前两个参数是矩阵
+                A, B = args[0], args[1]
+                
+                # 获取矩阵维度
+                M, K = A.shape if len(A.shape) == 2 else (A.shape[0], np.prod(A.shape[1:]))
+                K2, N = B.shape if len(B.shape) == 2 else (np.prod(B.shape[:-1]), B.shape[-1])
+                
+                # 验证矩阵乘法维度
+                if K != K2:
+                    print(f"Warning: Matrix dimensions mismatch: A[{M}x{K}] vs B[{K2}x{N}]")
+                
+                # 计算浮点运算次数 (2*M*N*K)
+                flops = 2 * M * N * K
+                
+                # 计算内存访问量 (假设读写全部数据)
+                # A: M*K, B: K*N, C: M*N
+                # 数据类型大小
+                dtype_size = A.element_size()
+                memory_access = (M*K + K*N + M*N) * dtype_size
+                
+                # 计算TFLOPS (Tera FLoating-point OPerations per Second)
+                tflops = (flops / 1e12) / (avg_time / 1000)  # 毫秒转秒
+                
+                # 计算HBM带宽 (GB/s)
+                hbm_bandwidth = (memory_access / 1e9) / (avg_time / 1000)
+                
+            except (IndexError, AttributeError, TypeError) as e:
+                print(f"Performance metrics calculation skipped: {e}")
+            
+            # 构建结果字典
+            metrics = {
+                'avg_time_ms': avg_time,
+                'min_time_ms': min_time,
+                'max_time_ms': max_time,
+                'times_ms': times,
+                'tflops': tflops,
+                'hbm_bandwidth': hbm_bandwidth
+            }
+            
+            # 打印结果
+            print(f"Function '{func.__name__}' executed on cuda:{target_device}")
+            print(f"  Warmup runs: {warmup}, Timed runs: {repetitions}")
+            print(f"  Time: {avg_time:.4f} ms (min: {min_time:.4f}, max: {max_time:.4f})")
+            
+            if tflops is not None:
+                print(f"  TFLOPS: {tflops:.2f}")
+            if hbm_bandwidth is not None:
+                print(f"  HBM Bandwidth: {hbm_bandwidth:.2f} GB/s")
+            
+            return result, metrics
+        
+        return wrapper
+    return decorator
 
 def get_device_name():
     device_name = torch.cuda.get_device_name(torch.cuda.current_device())
