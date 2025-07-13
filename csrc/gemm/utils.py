@@ -48,7 +48,8 @@ def cuda_timer(device=None, sync=True, repetitions=1, warmup=3):
             # 正式计时运行
             times = []
             for i in range(warmup, repetitions + warmup):
-                torch.cuda.synchronize(device_obj)
+                if sync:
+                    torch.cuda.synchronize(device_obj)
                 start_events[i].record()
                 
                 result = func(*args, **kwargs)  # 执行目标函数
@@ -57,9 +58,15 @@ def cuda_timer(device=None, sync=True, repetitions=1, warmup=3):
                 if sync:
                     torch.cuda.synchronize(device_obj)
                 
-                # 计算本次执行时间 (毫秒)
-                elapsed_time = start_events[i].elapsed_time(end_events[i])
-                times.append(elapsed_time)
+                    # 计算本次执行时间 (毫秒)
+                    elapsed_time = start_events[i].elapsed_time(end_events[i])
+                    times.append(elapsed_time)
+
+            if not sync:
+                torch.cuda.synchronize(device_obj)
+                for i in range(warmup, repetitions + warmup):
+                    elapsed_time = start_events[i].elapsed_time(end_events[i])
+                    times.append(elapsed_time)
             
             # 计算统计指标
             times_np = np.array(times)

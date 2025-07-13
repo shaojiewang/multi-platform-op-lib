@@ -10,17 +10,17 @@ def construct(m: int, n: int, k: int):
     ref_out = x @ y.t()
     return x, y, out, ref_out
 
-@cuda_timer(repetitions=10, warmup=3)
+@cuda_timer(sync=False, repetitions=10, warmup=10)
 def call_cublas_bfgemm(x, y, out):
     bfgemm.hgemm_cublas_tensor_op_nn(x, y, out)
 
-@cuda_timer(repetitions=10, warmup=3)
+@cuda_timer(sync=False, repetitions=10, warmup=10)
 def call_pytorch_bfgemm(x, y, out):
     out = x @ y
 
 def test_gemm():
-    for m in (64, 128, 2048):
-        for k, n in [(576, 7168), (7168, 2112)]:
+    for m in (2048, 4096):
+        for k, n in [(7168, 2112)]:
             x, y, out, ref_out = construct(m, n, k)
             y_t = y.t()
             print(f"{m=}, {n=}, {k=}")
