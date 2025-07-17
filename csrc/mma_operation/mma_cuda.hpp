@@ -41,6 +41,8 @@ using bf16x8_t = bf16x1_t __attribute__((ext_vector_type(8)));
 #define HOST_DEVICE __forceinline__ __host__ __device__
 #define DEVICE __forceinline__ __device__
 
+#define ITER 32
+
 int get_sm_count() 
 {
   int device_id;
@@ -169,8 +171,8 @@ DEVICE MMASmemDescriptor make_smem_desc(PointerType smem_ptr)
 template <class AType, 
           class BType>
 struct KernelSharedStorage {
-  alignas(128) AType smem_a[10 * 1024];
-  alignas(128) BType smem_b[10 * 1024];
+  alignas(128) AType smem_a[40 * 1024];
+  alignas(128) BType smem_b[40 * 1024];
 };
 
 template <class TA,
@@ -179,17 +181,19 @@ template <class TA,
 __global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
 {
   int tidx = threadIdx.x;
-  int bidx = blockIdx.x;
-  int offset = bidx * blockDim.x + tidx;
+  // int bidx = blockIdx.x;
+  // int offset = bidx * blockDim.x + tidx;
 
   TAcc accumulators[64];
+
+  //printf("in kernel begin inst_iter=%d\n", inst_iter);
 
   for(int i = 0; i < 64; i++)
   {
     accumulators[i] = 0;
   }
 
-  extern __shared__ uint8_t raw_shared_mem[40 * 1024];
+  extern __shared__ uint8_t raw_shared_mem[];
 
   KernelSharedStorage<TA, TB>& shared_storage = *reinterpret_cast<KernelSharedStorage<TA, TB>*>(raw_shared_mem);
 
@@ -200,10 +204,11 @@ __global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
 
   for(int i = 0; i < inst_iter; i++)
   {
+    int step = 0;
 #pragma unroll
-    for(int j = 0; j < 32; j++)
+    for(int j = 0; j < ITER; j++)
     {
-      SM90_64x128x16_F32BF16BF16_SS<1, 1, 0, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
+      SM90_64x128x16_F32BF16BF16_SS<1, 1, 1, 0, 0>::wgmma(desc_a.desc_, desc_b.desc_, 
         accumulators[0], accumulators[1], accumulators[2], accumulators[3],
         accumulators[4], accumulators[5], accumulators[6], accumulators[7],
         accumulators[8], accumulators[9], accumulators[10], accumulators[11],
@@ -221,12 +226,19 @@ __global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
         accumulators[56], accumulators[57], accumulators[58], accumulators[59],
         accumulators[60], accumulators[61], accumulators[62], accumulators[63]
       );
+      step += 512;
+      desc_a = make_smem_desc(shared_storage.smem_a + step);
+      desc_b = make_smem_desc(shared_storage.smem_b + step);
     }
     warpgroup_commit_batch();
     warpgroup_wait<0>();
+    __syncwarp();
   }
 
-  // __syncwarp();
+  //if(blockIdx.x == 1 && threadIdx.x == 1)
+  //  printf("in kernel inst_iter=%d\n", inst_iter);
+
+  __syncwarp();
   
   *(acc_ptr + tidx) = accumulators[0];
 }
@@ -234,7 +246,35 @@ __global__ void wgmma_block(TAcc* acc_ptr, int inst_iter, float random_seed)
 template <class TA,
           class TB,
           class TAcc>
-void mma_launcher(TAcc* acc_ptr, float random_seed, int inst_iter, int gdx, int bdx)
+void mma_launcher(TAcc* acc_ptr, float random_seed, int inst_iter, uint32_t gdx, uint32_t bdx)
 {
-  wgmma_block<TA, TB, TAcc><<<gdx, bdx>>>(acc_ptr, inst_iter, random_seed);
+  dim3 cluster = {1, 1, 1};
+  auto* Kernel = wgmma_block<TA, TB, TAcc>;
+  size_t smemSizeBytes = 160 * 1024;
+  if (smemSizeBytes >= (48 << 10)) {
+    cudaError_t result = cudaFuncSetAttribute(
+        Kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smemSizeBytes);
+    CUDA_CHECK(result);
+  }
+  void* kernel_params[] = {&acc_ptr, &inst_iter, &random_seed};
+  cudaLaunchConfig_t launch_config;
+  launch_config.gridDim = {gdx, 1, 1};
+  launch_config.blockDim = {bdx, 1, 1};
+  launch_config.dynamicSmemBytes = size_t(smemSizeBytes);
+  launch_config.stream = nullptr;
+
+  cudaLaunchAttribute launch_attribute[1];
+  launch_attribute[0].id = cudaLaunchAttributeClusterDimension;
+  launch_attribute[0].val.clusterDim.x = cluster.x;
+  launch_attribute[0].val.clusterDim.y = cluster.y;
+  launch_attribute[0].val.clusterDim.z = cluster.z;
+
+  launch_config.attrs = launch_attribute;
+  launch_config.numAttrs = 1;
+
+  void const* kernel = (void const*)Kernel;
+
+  cudaError_t status = cudaLaunchKernelExC(&launch_config, kernel, kernel_params);
+  cudaError_t launch_result = cudaGetLastError();
+  CUDA_CHECK(launch_result);
 }
