@@ -56,8 +56,8 @@ int main(int argc, char** argv)
   int MHZ = std::stoull(std::string(argv[7]));
   float SCLK = (float)MHZ / 1000.0;
 
-  double Tflops = (double)2 * M * N * K * blocks * num_cu * (32 * inst_iter) / time_per_loop / 1e9;
-  double Gflop = (double)2 * M * N * K * blocks * num_cu * (32 * inst_iter)  / 1e9;
+  double Tflops = (double)2 * M * N * K * blocks * gdx * (32 * inst_iter) / time_per_loop / 1e9;
+  double Gflop = (double)2 * M * N * K * blocks * gdx * (32 * inst_iter)  / 1e9;
   double TheTflops = 989.0; // (double)2 * M * N * K * blocks * 4 * num_cu * SCLK / cycles / 1e3;
   float RelPerf = Tflops / TheTflops;
 
