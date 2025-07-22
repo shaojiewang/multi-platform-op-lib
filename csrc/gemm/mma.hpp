@@ -16,7 +16,7 @@ __device__ __forceinline__ void mma_sync(unsigned int* fragA,
                                          unsigned int* fragB,
                                          ACC_TYPE* accum)
 {
-  asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16"
-              );
+  asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16 "
+               "{} ");
 }
 
