@@ -1,7 +1,14 @@
 import torch
 
 from sgl_prefill_attn import context_attention_fwd
-from sglang.srt.utils import get_device
+from typing import Optional
+# from sglang.srt.utils import get_device
+
+def get_device(device_id: Optional[int] = None):
+    if hasattr(torch, "cuda") and torch.cuda.is_available():
+        if device_id is None:
+            return "cuda"
+        return "cuda:{}".format(device_id)
 
 class TestTritonAttention:
     def __init__(self):
@@ -20,10 +27,10 @@ class TestTritonAttention:
         end_event = torch.cuda.Event(enable_timing=True)
 
         # Create random input tensors
-        q = torch.randn(sum(seq_lens), num_heads, head_dim, device=device)
-        k = torch.randn(sum(seq_lens), num_heads, head_dim, device=device)
-        v = torch.randn(sum(seq_lens), num_heads, head_dim, device=device)
-        o = torch.zeros(sum(seq_lens), num_heads, head_dim, device=device)
+        q = torch.randn(sum(seq_lens), num_heads, head_dim, dtype=torch.bfloat16, device=device)
+        k = torch.randn(sum(seq_lens), num_heads, head_dim, dtype=torch.bfloat16, device=device)
+        v = torch.randn(sum(seq_lens), num_heads, head_dim, dtype=torch.bfloat16, device=device)
+        o = torch.zeros(sum(seq_lens), num_heads, head_dim, dtype=torch.bfloat16, device=device)
 
         # Create b_start_loc and b_seq_len tensors
         b_start_loc = torch.tensor([0, seq_lens[0]], device=device)
@@ -66,7 +73,7 @@ class TestTritonAttention:
 
 if __name__ == "__main__":
     test = TestTritonAttention()
-    hd = 72
+    hd = 128
     is_causal = False
     
     test._test_context_attention_once(hd, is_causal)

@@ -49,9 +49,9 @@ def _fwd_kernel(
     IS_CAUSAL: tl.constexpr,
     Lk: tl.constexpr,
 ):
-    cur_batch = tl.program_id(1)
-    cur_head = tl.program_id(2)
-    start_m = tl.program_id(0)
+    cur_batch = tl.program_id(0)
+    cur_head = tl.program_id(1)
+    start_m = tl.program_id(2)
 
     cur_kv_head = cur_head // kv_group_num
 
@@ -181,8 +181,8 @@ def context_attention_fwd(
     batch, head = b_seq_len.shape[0], q.shape[1]
     kv_group_num = q.shape[1] // k.shape[1]
 
-    grid = (triton.cdiv(max_input_len, BLOCK), batch, head)
-    #grid = (batch, head, triton.cdiv(max_input_len, BLOCK))
+    #grid = (triton.cdiv(max_input_len, BLOCK), batch, head)
+    grid = (batch, head, triton.cdiv(max_input_len, BLOCK))
     num_warps = 4 if Lk <= 64 else 8
 
     _fwd_kernel[grid](
