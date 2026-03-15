@@ -148,6 +148,7 @@ def get_device_capability():
 def get_build_sources():
     build_sources = []
     build_sources.append('bfgemm_cublas.cu')
+    build_sources.append('bfgemm_wgmma.cu')
     build_sources.append('pybind_bfgemm.cc')
     return build_sources
 

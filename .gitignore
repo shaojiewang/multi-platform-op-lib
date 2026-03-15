@@ -34,3 +34,7 @@
 *.exe
 *.out
 *.app
+
+# python
+*dist/
+*pycache__/

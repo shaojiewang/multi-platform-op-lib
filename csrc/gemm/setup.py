@@ -11,7 +11,7 @@ from torch.utils.cpp_extension import (
 from utils import (get_build_sources, get_build_cuda_cflags)
 
 # package name managed by pip, which can be remove by `pip uninstall toy-hgemm`
-PACKAGE_NAME = "ampere_bfgemm"
+PACKAGE_NAME = "bfgemm_test"
 
 ext_modules = []
 generator_flag = []
@@ -36,7 +36,8 @@ if CUDA_HOME is not None:
     _, bare_metal_version = get_cuda_bare_metal_version(CUDA_HOME)
     if bare_metal_version >= Version("11.8"):
         cc_flag.append("-gencode")
-        cc_flag.append("arch=compute_90,code=sm_90")
+        #cc_flag.append("arch=compute_90,code=sm_90")
+        cc_flag.append("arch=compute_90a,code=sm_90a")
 
 # ninja build does not work unless include_dirs are abs path
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,7 +47,7 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 ext_modules.append(
     CUDAExtension(
         # package name for import
-        name="ampere_bfgemm",
+        name="bfgemm_test",
         sources=get_build_sources(),
         extra_compile_args={
             # add c compile flags

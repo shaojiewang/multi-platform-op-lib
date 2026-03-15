@@ -1,9 +1,9 @@
-ARCH=sm_90a
+ARCH=90a
 rm -rf ./build
 mkdir build
 cd build
 #/opt/rocm/llvm/bin/clang++ -x assembler -target amdgcn--amdhsa -mcpu=$ARCH mma_inst.s -o kernel.co
-nvcc -arch=$ARCH -std=c++17 -save-temps -Wno-deprecated-declarations -lcudart -lcuda ../mma_cuda.cu -o mma_cuda.exe
+nvcc --generate-code arch=compute_$ARCH,code=sm_$ARCH -std=c++17 -save-temps -Wno-deprecated-declarations -lcudart -lcuda ../mma_cuda.cu -o mma_cuda.exe
 
 # run
 chmod 777 ./mma_cuda.exe
