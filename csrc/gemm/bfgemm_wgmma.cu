@@ -5,14 +5,54 @@
 #include <torch/extension.h>
 #include <torch/types.h>
 
-struct WgmmaDescirptor {
+struct GmmaDescirptor {
   uint64_t desc;
-  __device__ static WgmmaDescirptor make(const void* ptr, int leading, int stride, int layout) {
-    WgmmaDescirptor d;
+  __device__ static GmmaDescirptor make(const void* ptr, int leading, int stride, int layout) {
+    GmmaDescirptor d;
     uint32_t addr = (uint32_t)__cvta_generic_to_shared(ptr);
-    d.desc = 
-
+    d.desc = ((uint64_t)((addr >> 4) & 0x3FFF)) | 
+             ((uint64_t)((leading >> 4) & 0x3FFF) << 16) | 
+             ((uint64_t)((stride >> 4) & 0x3FFF) << 32) |
+             ((uint64_t)(layout & 0x3) << 62);
+    return d;
 };
+
+__device__ void wgmma_fence() {
+  asm volatile("wgmma.fence.sync.aligned;\n" ::: "memory");
+}
+
+__device__ void wgmma_commit() {
+  asm volatile("wgmma.commit_group.sync.aligned;\n" ::: "memory");
+}
+
+__device__ void wgmma_wait() {
+  asm volatile("wgmma.wait_group.sync.aligned;\n" ::: "memory");
+}
+
+__device__ __forceinline__ void wgmma_fence_operand(float& reg) {
+  asm volatile("" : "+f"(reg) :: "memory");
+}
+
+__device__ void wgmma_m64n64k16_bf16(float* acc, uint64_t da, uint64_t db, int scale_d) {
+  asm volatile(
+    "{\n"
+    ".reg.pred p;\n"
+    "setp.ne.b32 p, %34, 0;\n"
+    "wgmma.mma_async.sync.aligned.m64n64k16.f32.bf16.bf16 "
+    "{%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %10,%11,%12,%13,%14,%15"
+    " %16,%17,%18,%19,%20,%21,%22,%23,%24,%25,%26,%27,%28,%29,%30,%31},"
+    "%32,"
+    "%33,"
+    "p,1,1,0,0;\n}"
+    : "+f"(acc[0]),"+f"(acc[1]),"+f"(acc[2]),"+f"(acc[3]),"+f"(acc[4]),"+f"(acc[5]),"+f"(acc[6]),"+f"(acc[7]),
+      "+f"(acc[8]),"+f"(acc[9]),"+f"(acc[10]),"+f"(acc[11]),"+f"(acc[12]),"+f"(acc[13]),"+f"(acc[14]),"+f"(acc[15]),
+      "+f"(acc[16]),"+f"(acc[17]),"+f"(acc[18]),"+f"(acc[19]),"+f"(acc[20]),"+f"(acc[21]),"+f"(acc[22]),"+f"(acc[23]),
+      "+f"(acc[24]),"+f"(acc[25]),"+f"(acc[26]),"+f"(acc[27]),"+f"(acc[28]),"+f"(acc[29]),"+f"(acc[30]),"+f"(acc[31])
+    : "l"(da),"l"(db),"r"(scale_d)
+  );
+}
+
+
 
 template <int BLOCK_M = 64,
   int BLOCK_N = 64,
