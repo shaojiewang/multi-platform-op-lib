@@ -52,7 +52,18 @@ __device__ void wgmma_m64n64k16_bf16(float* acc, uint64_t da, uint64_t db, int s
   );
 }
 
+__device__ __forceinline__ int idx_swizzle(int row, int col) {
+  int col_swizzled = col ^ ((row & 7) * 8);
+  return col_swizzled;
+}
 
+__device__ void get_coord(int tid, int reg, int& row, int& col) {
+  int t0 = tid % 4, t1 = (tid / 4) % 8, t2 = tid / 32;
+  int r0 = reg % 2, r1 = (reg / 2) % 2, r2 = reg / 4;
+  int lin = t0 * 128 + t1 * 1 + t2 * 16 + r0 * 64 + r1 * 8 + r2 * 512;
+  row = lin % 64;
+  col = lin / 64;
+}
 
 template <int BLOCK_M = 64,
   int BLOCK_N = 64,
@@ -80,6 +91,65 @@ void wgmma_bf16_gemm(
   for (int i = 0; i < 32; i++)
   {
     acc[i] = 0.f;
+  }
+
+  for (int k_base = 0; k_base < K; k_base += BLOCK_K) 
+  {
+    for (int i = tid; i < BLOCK_M * BLOCK_K; i += 128)
+    {
+      int m = i / BLOCK_K, k = i % BLOCK_K;
+      int gm = bm + m, gk = k_base + k;
+      __nv_bfloat16 val = (gk < K && gm < M) ? A[gm * K + gk] : __float2bfloat16(0.0f);
+      sA[idx_swizzle(m, k)] = val;
+    }
+    for (int i = tid; i < BLOCK_K * BLOCK_N; i += 128)
+    {
+      int n = i % BLOCK_N, k = i / BLOCK_N;
+      int gn = bn + n, gk = k_base + k;
+      __nv_bfloat16 val = (gk < k && gn < N) ? B[gk * N + gn] : __float2bfloat16(0.0f);
+      sB[idx_swizzle(n, k)] = val;
+    }
+
+    __syncthreads();
+    asm volatile("fence.proxy.async;\n"::: "memory");
+    __syncwarp();
+
+#pragma unroll
+    for (int ki = 0; ki < BLOCK_K; ki += WGMMA_K)
+    {
+#pragma unroll
+      for (int i = 0; i < 32; i++)
+      {
+        wgmma_fence_operand(acc[i]);
+      }
+
+      wgmma_fence();
+      uint64_t da = GmmaDesciptor::make(sA + ki, 0, WGMMA_STRIDE, 1).desc;
+      uint64_t db = GmmaDesciptor::make(sB + ki, 0, WGMMA_STRIDE, 1).desc;
+
+      wgmma_m64n64k16_bf16(acc, da, db, 1);
+      wgmma_commit();
+      
+#pragma unroll
+      for (int i = 0; i < 32; i++)
+      {
+        wgmma_fence_operand(acc[i]);
+      }
+      wgmma_wait();
+    }
+
+  }
+
+#pragma unroll
+  for (int r = 0; r < 32; r++)
+  {
+    int lm, ln;
+    get_coord(tid, r, lm, ln);
+    int gm = bm + lm, gn = bn + ln;
+    if (gm < M && gn < N)
+    {
+      C[gm * N + gn] = acc[r];
+    }
   }
 
 }
