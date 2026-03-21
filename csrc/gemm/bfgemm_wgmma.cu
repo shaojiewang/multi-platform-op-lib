@@ -5,16 +5,19 @@
 #include <torch/extension.h>
 #include <torch/types.h>
 
-struct GmmaDescirptor {
+struct GmmaDescriptor 
+{
   uint64_t desc;
-  __device__ static GmmaDescirptor make(const void* ptr, int leading, int stride, int layout) {
-    GmmaDescirptor d;
+  __device__ static GmmaDescriptor make(const void* ptr, int leading, int stride, int layout) 
+  {
+    GmmaDescriptor d;
     uint32_t addr = (uint32_t)__cvta_generic_to_shared(ptr);
     d.desc = ((uint64_t)((addr >> 4) & 0x3FFF)) | 
              ((uint64_t)((leading >> 4) & 0x3FFF) << 16) | 
              ((uint64_t)((stride >> 4) & 0x3FFF) << 32) |
              ((uint64_t)(layout & 0x3) << 62);
     return d;
+  }
 };
 
 __device__ void wgmma_fence() {
@@ -26,7 +29,7 @@ __device__ void wgmma_commit() {
 }
 
 __device__ void wgmma_wait() {
-  asm volatile("wgmma.wait_group.sync.aligned;\n" ::: "memory");
+  asm volatile("wgmma.wait_group.sync.aligned 0;\n" ::: "memory");
 }
 
 __device__ __forceinline__ void wgmma_fence_operand(float& reg) {
@@ -39,7 +42,7 @@ __device__ void wgmma_m64n64k16_bf16(float* acc, uint64_t da, uint64_t db, int s
     ".reg.pred p;\n"
     "setp.ne.b32 p, %34, 0;\n"
     "wgmma.mma_async.sync.aligned.m64n64k16.f32.bf16.bf16 "
-    "{%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %10,%11,%12,%13,%14,%15"
+    "{%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %10,%11,%12,%13,%14,%15,"
     " %16,%17,%18,%19,%20,%21,%22,%23,%24,%25,%26,%27,%28,%29,%30,%31},"
     "%32,"
     "%33,"
@@ -124,8 +127,8 @@ void wgmma_bf16_gemm(
       }
 
       wgmma_fence();
-      uint64_t da = GmmaDesciptor::make(sA + ki, 0, WGMMA_STRIDE, 1).desc;
-      uint64_t db = GmmaDesciptor::make(sB + ki, 0, WGMMA_STRIDE, 1).desc;
+      uint64_t da = GmmaDescriptor::make(sA + ki, 0, WGMMA_STRIDE, 1).desc;
+      uint64_t db = GmmaDescriptor::make(sB + ki, 0, WGMMA_STRIDE, 1).desc;
 
       wgmma_m64n64k16_bf16(acc, da, db, 1);
       wgmma_commit();
