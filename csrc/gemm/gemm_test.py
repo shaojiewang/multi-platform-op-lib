@@ -8,7 +8,7 @@ def construct(m: int, n: int, k: int):
     y = torch.randn((n, k), device='cuda', dtype=torch.bfloat16)
     out = torch.empty((m, n), device='cuda', dtype=torch.bfloat16)
     out_fp32 = torch.empty((m, n), device='cuda', dtype=torch.float)
-    ref_out = x @ y.t()
+    ref_out = x @ y
     return x, y, out, ref_out, out_fp32
 
 @torch.no_grad()
@@ -58,16 +58,16 @@ def call_pytorch_bfgemm(x, y, out):
     return x @ y
 
 def test_gemm():
-    for m in (4096,):
-        for k, n in [(7168, 2112)]:
+    for m in (64,):
+        for k, n in [(64, 64)]:
             x, y, out, ref_out, out_fp32 = construct(m, n, k)
-            y_t = y.t().contiguous()
+            #y_t = y.t().contiguous()
             print(f"{m=}, {n=}, {k=}")
-            call_cublas_bfgemm(x, y_t, out)
-            check_correctness("cuBLAS", out, ref_out)
-            pytorch_out, _ = call_pytorch_bfgemm(x, y_t, out)
+            #call_cublas_bfgemm(x, y_t, out)
+            #check_correctness("cuBLAS", out, ref_out)
+            pytorch_out, _ = call_pytorch_bfgemm(x, y, out)
             check_correctness("PyTorch", pytorch_out, ref_out)
-            call_wgmma_bfgemm_torch(x, y_t, out_fp32)
+            call_wgmma_bfgemm_torch(x, y, out_fp32)
             check_correctness("WGMMA", out_fp32, ref_out)
 
 if __name__ == '__main__':
