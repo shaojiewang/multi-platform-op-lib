@@ -55,9 +55,10 @@ __device__ void wgmma_m64n64k16_bf16(float* acc, uint64_t da, uint64_t db, int s
   );
 }
 
+template <int BLOCK_K>
 __device__ __forceinline__ int idx_swizzle(int row, int col) {
   int col_swizzled = col ^ ((row & 7) * 8);
-  return col_swizzled;
+  return row * BLOCK_K + col_swizzled;
 }
 
 __device__ void get_coord(int tid, int reg, int& row, int& col) {
@@ -103,14 +104,14 @@ void wgmma_bf16_gemm(
       int m = i / BLOCK_K, k = i % BLOCK_K;
       int gm = bm + m, gk = k_base + k;
       __nv_bfloat16 val = (gk < K && gm < M) ? A[gm * K + gk] : __float2bfloat16(0.0f);
-      sA[idx_swizzle(m, k)] = val;
+      sA[idx_swizzle<BLOCK_K>(m, k)] = val;
     }
     for (int i = tid; i < BLOCK_K * BLOCK_N; i += 128)
     {
       int n = i % BLOCK_N, k = i / BLOCK_N;
       int gn = bn + n, gk = k_base + k;
-      __nv_bfloat16 val = (gk < k && gn < N) ? B[gk * N + gn] : __float2bfloat16(0.0f);
-      sB[idx_swizzle(n, k)] = val;
+      __nv_bfloat16 val = (gk < K && gn < N) ? B[gk * N + gn] : __float2bfloat16(0.0f);
+      sB[idx_swizzle<BLOCK_K>(n, k)] = val;
     }
 
     __syncthreads();
@@ -149,11 +150,15 @@ void wgmma_bf16_gemm(
     int lm, ln;
     get_coord(tid, r, lm, ln);
     int gm = bm + lm, gn = bn + ln;
+
+
     if (gm < M && gn < N)
     {
       C[gm * N + gn] = acc[r];
     }
   }
+  if(threadIdx.x==0)
+    printf("c=[%f, %f]\n", C[0], C[1]);
 
 }
 
@@ -187,6 +192,8 @@ void bfgemm_torch(torch::Tensor A, torch::Tensor B, torch::Tensor C)
   constexpr int WGMMA_K = 16;
   constexpr int WGMMA_STRIDE = 1024;
 
+
+  printf("gx=%d,dy=%d\n", (N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
   dim3 grid((N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
   wgmma_bf16_gemm<BLOCK_M, BLOCK_N, BLOCK_K, WGMMA_K, WGMMA_STRIDE><<<grid, 128>>>(
     (const __nv_bfloat16*)(A.data_ptr()), 
@@ -195,6 +202,7 @@ void bfgemm_torch(torch::Tensor A, torch::Tensor B, torch::Tensor C)
     M, 
     N, 
     K);
+
 
 }
 

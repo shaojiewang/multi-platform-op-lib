@@ -5,7 +5,7 @@ from utils import cuda_timer
 
 def construct(m: int, n: int, k: int):
     x = torch.randn((m, k), device='cuda', dtype=torch.bfloat16)
-    y = torch.randn((n, k), device='cuda', dtype=torch.bfloat16)
+    y = torch.randn((k, n), device='cuda', dtype=torch.bfloat16)
     out = torch.empty((m, n), device='cuda', dtype=torch.bfloat16)
     out_fp32 = torch.empty((m, n), device='cuda', dtype=torch.float)
     ref_out = x @ y
@@ -45,7 +45,7 @@ def check_correctness(name, out, ref_out, rtol=1e-2, atol=1e-1):
             f"abs_diff={max_abs.item():.6f}, rel_diff={max_rel.item():.6f}"
         )
 
-@cuda_timer(sync=False, repetitions=10, warmup=10)
+@cuda_timer(sync=False, repetitions=1, warmup=0)
 def call_wgmma_bfgemm_torch(x, y, out):
     bfgemm.bfgemm_torch(x, y, out)
 
@@ -58,8 +58,8 @@ def call_pytorch_bfgemm(x, y, out):
     return x @ y
 
 def test_gemm():
-    for m in (64,):
-        for k, n in [(64, 64)]:
+    for m in (256,):
+        for k, n in [(128, 512)]:
             x, y, out, ref_out, out_fp32 = construct(m, n, k)
             #y_t = y.t().contiguous()
             print(f"{m=}, {n=}, {k=}")
