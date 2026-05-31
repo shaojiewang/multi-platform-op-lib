@@ -157,8 +157,6 @@ void wgmma_bf16_gemm(
       C[gm * N + gn] = acc[r];
     }
   }
-  if(threadIdx.x==0)
-    printf("c=[%f, %f]\n", C[0], C[1]);
 
 }
 
@@ -193,7 +191,7 @@ void bfgemm_torch(torch::Tensor A, torch::Tensor B, torch::Tensor C)
   constexpr int WGMMA_STRIDE = 1024;
 
 
-  printf("gx=%d,dy=%d\n", (N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
+  // printf("gx=%d,dy=%d\n", (N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
   dim3 grid((N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
   wgmma_bf16_gemm<BLOCK_M, BLOCK_N, BLOCK_K, WGMMA_K, WGMMA_STRIDE><<<grid, 128>>>(
     (const __nv_bfloat16*)(A.data_ptr()), 
